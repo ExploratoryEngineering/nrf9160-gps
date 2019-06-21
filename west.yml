@@ -1,0 +1,46 @@
+west:
+  url: https://github.com/zephyrproject-rtos/west
+  revision: v0.5.8
+
+manifest:
+  defaults:
+    remote: ncs
+
+  remotes:
+    - name: ncs
+      url-base: https://github.com/NordicPlayground
+    - name: zephyrproject
+      url-base: https://github.com/zephyrproject-rtos
+    - name: throwtheswitch
+      url-base: https://github.com/ThrowTheSwitch
+    - name: armmbed
+      url-base: https://github.com/ARMmbed
+
+  projects:
+    - name: fw-nrfconnect-zephyr
+      path: zephyr
+      west-commands: scripts/west-commands.yml
+      revision: 3c4f27282002e634d60216f23fb341317a4b199f
+    - name: fw-nrfconnect-nrf
+      path: nrf
+      revision: 15bd29344ba0a550ceddf0f04242e0f76aabb316
+    - name: fw-nrfconnect-mcuboot
+      path: mcuboot
+      revision: 4b919890cc848316304b81d9e160fe5a10ce3764
+    - name: fw-nrfconnect-tinycbor
+      path: modules/lib/tinycbor
+      revision: ef1f9c3d87474ec3570b1f46e91fd4b54a4fb421
+    - name: nrfxlib
+      path: nrfxlib
+      revision: v0.4.0
+    - name: cmock
+      path: test/cmock
+      revision: c243b9a7a7b3c471023193992b46cf1bd1910450
+      remote: throwtheswitch
+    - name: unity
+      path: test/cmock/vendor/unity
+      revision: 031f3bbe45f8adf504ca3d13e6f093869920b091
+      remote: throwtheswitch
+    - name: mbedtls
+      revision: mbedtls-2.13.1
+      remote: armmbed
