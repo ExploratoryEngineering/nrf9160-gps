@@ -304,6 +304,37 @@ error:
 	return false;
 }
 
+// Partly copy/paste from zephyr/subsys/net/ip/utils.c
+// TODO: Remove when Zephyr is fixed.
+int tmp_net_addr_pton(sa_family_t family, const char *src, void *dst) {
+	if (family == AF_INET) {
+		struct in_addr *addr = (struct in_addr *)dst;
+		size_t i, len;
+
+		len = strlen(src);
+		for (i = 0; i < len; i++) {
+			if (!(src[i] >= '0' && src[i] <= '9') &&
+				src[i] != '.') {
+				return -EINVAL;
+			}
+		}
+
+		(void)memset(addr, 0, sizeof(struct in_addr));
+
+		for (i = 0; i < sizeof(struct in_addr); i++) {
+			char *endptr;
+
+			addr->s4_addr[i] = strtol(src, &endptr, 10);
+
+			src = ++endptr;
+		}
+	} else {
+		return -ENOTSUP;
+	}
+
+	return 0;
+}
+
 struct sockaddr_in make_addr() {
 	const char* ip = "172.16.15.14";
 	int port = 1234;
@@ -312,7 +343,7 @@ struct sockaddr_in make_addr() {
 		.sin_family = AF_INET,
 		.sin_port = htons(port),
 	};
-	net_addr_pton(AF_INET, ip, &dest.sin_addr);
+	tmp_net_addr_pton(AF_INET, ip, &dest.sin_addr);
 
 	return dest;
 }
