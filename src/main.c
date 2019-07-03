@@ -133,30 +133,6 @@ error:
 	return false;
 }
 
-bool systemmode_gps() {
-	int sock = socket(AF_LTE, 0, NPROTO_AT);
-	if (sock < 0) {
-		printf("Error opening socket: %d\n", errno);
-		return false;
-	}
-
-	if (exec_at_cmd(sock, "AT+CFUN=4", NULL, 0) < 0 ||
-		exec_at_cmd(sock, "AT%XSYSTEMMODE=0,0,1,0", NULL, 0) < 0 ||
-		exec_at_cmd(sock, "AT\%XMAGPIO=1,0,0,1,1,1574,1577", NULL, 0) < 0 ||
-		exec_at_cmd(sock, "AT+CFUN=1", NULL, 0) < 0) {
-		printf("Error enabling system mode GPS: %d\n", errno);
-		goto error;
-	}
-	printf("System mode GPS.\n");
-
-	close(sock);
-	return true;
-
-error:
-	close(sock);
-	return false;
-}
-
 int gps_socket() {
 	int sock = nrf_socket(NRF_AF_LOCAL, NRF_SOCK_DGRAM, NRF_PROTO_GNSS);
 	if (sock < 0) {
@@ -188,9 +164,7 @@ int gps_socket() {
 		return -1;
 	}
 
-	static bool first_time = true;
-	u8_t use_case = first_time ? 0 : 1;
-	first_time = false;
+	u8_t use_case = 0;
 	retval = nrf_setsockopt(sock,
 				NRF_SOL_GNSS,
 				NRF_SO_GNSS_USE_CASE,
@@ -238,7 +212,7 @@ bool close_gps_socket(int sock) {
 	return true;
 }
 
-bool systemmode_lte() {
+bool systemmode_lte_gps() {
 	int sock = socket(AF_LTE, 0, NPROTO_AT);
 	if (sock < 0) {
 		printf("Error opening socket: %d\n", errno);
@@ -246,12 +220,13 @@ bool systemmode_lte() {
 	}
 
 	if (exec_at_cmd(sock, "AT+CFUN=4", NULL, 0) < 0 ||
-		exec_at_cmd(sock, "AT%XSYSTEMMODE=1,0,0,0", NULL, 0) < 0 ||
+		exec_at_cmd(sock, "AT%XSYSTEMMODE=1,0,1,0", NULL, 0) < 0 ||
+		exec_at_cmd(sock, "AT+CPSMS=1,\"\",\"\",\"11111111\",\"00000000\"", NULL, 0) < 0 || // disable TAU, go to PSM immediately
 		exec_at_cmd(sock, "AT+CFUN=1", NULL, 0) < 0) {
-		printf("Error enabling system mode LTE: %d\n", errno);
+		printf("Error enabling system mode LTE+GPS: %d\n", errno);
 		goto error;
 	}
-	printf("System mode LTE.\n");
+	printf("System mode LTE+GPS.\n");
 
 	while (true) {
 		char resp[32];
@@ -367,7 +342,7 @@ void main() {
 
 	struct sockaddr_in dest = make_addr();
 
-	if (!systemmode_lte()) {
+	if (!systemmode_lte_gps()) {
 		goto end;
 	}
 	if (!print_imei_imsi()) {
@@ -381,17 +356,13 @@ void main() {
 	}
 	printf("Connected!\n"); 
 
+	int sock = gps_socket();
+	if (sock <= 0) {
+		goto end;
+	}
+
 	while (true) {
-		if (!systemmode_gps()) {
-			goto end;
-		}
-		
 		dk_set_led_on(DK_LED1);
-		int sock = gps_socket();
-		if (sock <= 0) {
-			k_sleep(5000);
-			continue;
-		}
 
 		const int numPositions = 33;
 		position positions[numPositions];
@@ -413,13 +384,8 @@ void main() {
 		}
 		printf("Finished receiving GPS data\n");
 
-		close_gps_socket(sock);
 		dk_set_led_off(DK_LED3);
 		dk_set_led_off(DK_LED1);
-
-		if (!systemmode_lte()) {
-			goto end;
-		}
 
 		dk_set_led_on(DK_LED2);
 		dk_set_led_off(DK_LED4);
@@ -429,7 +395,6 @@ void main() {
 			continue;
 		}
 		dk_set_led_on(DK_LED4);
-		k_sleep(500);
 		dk_set_led_off(DK_LED2);
 	}
 
